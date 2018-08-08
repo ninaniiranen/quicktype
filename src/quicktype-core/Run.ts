@@ -456,6 +456,7 @@ class Run implements RunContext {
         const needIR = inputData.needIR || targetLanguage.names.indexOf("schema") < 0;
 
         const schemaString = needIR ? undefined : inputData.singleStringSchemaSource();
+        console.log(schemaString);
         if (schemaString !== undefined) {
             const lines = JSON.stringify(JSON.parse(schemaString), undefined, 4).split("\n");
             lines.push("");

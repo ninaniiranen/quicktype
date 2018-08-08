@@ -427,7 +427,7 @@ function r(name${stringAnnotation}) {
         });
     }
 
-    protected emitSourceStructure() {
+    protected emitSourceStructure(_givenOutputFilename: string) {
         if (this.leadingComments !== undefined) {
             this.emitCommentLines(this.leadingComments);
         } else {

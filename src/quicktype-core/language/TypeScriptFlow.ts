@@ -13,7 +13,7 @@ import {
     legalizeName,
     nameStyle
 } from "./JavaScript";
-import { defined, panic } from "../support/Support";
+import { defined, panic, assert } from "../support/Support";
 import { TargetLanguage } from "../TargetLanguage";
 import { RenderContext } from "../Renderer";
 import { isES3IdentifierStart } from "./JavaScriptUnicodeMaps";
@@ -271,17 +271,31 @@ export class TypeScriptRenderer extends TypeScriptFlowBaseRenderer {
     }
 }
 
+export const flowOptions = Object.assign({}, tsFlowOptions, {
+    multiFileOutput: new BooleanOption("multi-file-output", "Output each type to it's own file", false)
+});
+
 export class FlowTargetLanguage extends TypeScriptFlowBaseTargetLanguage {
     constructor() {
         super("Flow", ["flow"], "js");
     }
 
     protected makeRenderer(renderContext: RenderContext, untypedOptionValues: { [name: string]: any }): FlowRenderer {
-        return new FlowRenderer(this, renderContext, getOptionValues(tsFlowOptions, untypedOptionValues));
+        return new FlowRenderer(this, renderContext, getOptionValues(flowOptions, untypedOptionValues));
     }
 }
 
 export class FlowRenderer extends TypeScriptFlowBaseRenderer {
+    private _currentFilename: string | undefined;
+
+    constructor(
+        targetLanguage: TargetLanguage,
+        renderContext: RenderContext,
+        private readonly _flowOptions: OptionValues<typeof flowOptions>
+    ) {
+        super(targetLanguage, renderContext, _flowOptions);
+    }
+
     protected forbiddenNamesForGlobalNamespace(): string[] {
         return ["Class", "Object", "String", "Array", "JSON", "Error"];
     }
@@ -313,9 +327,214 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
         });
     }
 
-    protected emitSourceStructure() {
+    protected startFile(basename: Sourcelike): void {
+        assert(this._currentFilename === undefined, "Previous file wasn't finished");
+        // FIXME: The filenames should actually be Sourcelikes, too
+        this._currentFilename = `${this.sourcelikeToString(basename)}.js`;
+    }
+
+    protected finishFile(): void {
+        super.finishFile(defined(this._currentFilename));
+        this._currentFilename = undefined;
+    }
+
+    protected importsForType(t: ClassType | UnionType | EnumType): ReadonlySet<Type> {
+        return t.getChildren();
+    }
+
+    emitImports(imports: ReadonlySet<Type>): void {
+        for (const type of imports) {
+            this.emitLine("import ", type.getCombinedName(), " from './", type.getCombinedName(), "';");
+        }
+    }
+
+    emitFileHeader(filename: Name, imports: ReadonlySet<Type>): void {
+        this.startFile(filename);
         this.emitLine("// @flow");
         this.ensureBlankLine();
-        super.emitSourceStructure();
+        this.emitImports(imports);
+        this.ensureBlankLine();
+    }
+
+    protected emitClassDefinition(c: ClassType, className: Name): void {
+        this.emitFileHeader(className, this.importsForType(c));
+        this.emitDescription(this.descriptionForType(c));
+        // this.emitClassAttributes(c, className);
+        /* this.emitBlock(["public class ", className], () => {
+            this.forEachClassProperty(c, "none", (name, _, p) => {
+                this.emitLine("private ", this.javaType(false, p.type, true), " ", name, ";");
+            });
+            this.forEachClassProperty(c, "leading-and-interposing", (name, jsonName, p) => {
+                this.emitDescription(this.descriptionForClassProperty(c, jsonName));
+                const [getterName, setterName] = defined(this._gettersAndSettersForPropertyName.get(name));
+                this.emitAccessorAttributes(c, className, name, jsonName, p, false);
+                const rendered = this.javaType(false, p.type);
+                this.emitLine("public ", rendered, " ", getterName, "() { return ", name, "; }");
+                this.emitAccessorAttributes(c, className, name, jsonName, p, true);
+                this.emitLine("public void ", setterName, "(", rendered, " value) { this.", name, " = value; }");
+            });
+        });
+        */
+        this.finishFile();
+    }
+
+    /*protected unionField(
+        u: UnionType,
+        t: Type,
+        withIssues: boolean = false
+    ): { fieldType: Sourcelike; fieldName: Sourcelike } {
+        const fieldType = this.javaType(true, t, withIssues);
+        // FIXME: "Value" should be part of the name.
+        const fieldName = [this.nameForUnionMember(u, t), "Value"];
+        return { fieldType, fieldName };
+    }*/
+
+    protected emitUnionDefinition(u: UnionType, unionName: Name): void {
+        /*const tokenCase = (tokenType: string): void => {
+            this.emitLine("case ", tokenType, ":");
+        };
+
+        const emitNullDeserializer = (): void => {
+            tokenCase("VALUE_NULL");
+            this.indent(() => this.emitLine("break;"));
+        };
+
+        const emitDeserializeType = (_t: Type): void => {
+            const { fieldName } = this.unionField(u, t);
+            const rendered = this.javaTypeWithoutGenerics(true, t);
+            this.emitLine("value.", fieldName, " = jsonParser.readValueAs(", rendered, ".class);");
+            this.emitLine("break;");
+        };
+
+        const emitDeserializer = (tokenTypes: string[], kind: TypeKind): void => {
+            const t = u.findMember(kind);
+            if (t === undefined) return;
+
+            for (const tokenType of tokenTypes) {
+                tokenCase(tokenType);
+            }
+            this.indent(() => emitDeserializeType(t));
+        };
+
+        const emitDoubleSerializer = (): void => {
+            const t = u.findMember("double");
+            if (t === undefined) return;
+
+            if (u.findMember("integer") === undefined) tokenCase("VALUE_NUMBER_INT");
+            tokenCase("VALUE_NUMBER_FLOAT");
+            this.indent(() => emitDeserializeType(t));
+        };*/
+
+        this.emitFileHeader(unionName, this.importsForType(u));
+        this.emitDescription(this.descriptionForType(u));
+        if (!this._flowOptions.justTypes) {
+            this.emitLine("@JsonDeserialize(using = ", unionName, ".Deserializer.class)");
+            this.emitLine("@JsonSerialize(using = ", unionName, ".Serializer.class)");
+        }
+        /*const [maybeNull, nonNulls] = removeNullFromUnion(u);
+        this.emitBlock(["public class ", unionName], () => {
+            for (const t of nonNulls) {
+                const { fieldType, fieldName } = this.unionField(u, t, true);
+                this.emitLine("public ", fieldType, " ", fieldName, ";");
+            }
+            if (this._flowOptions.justTypes) return;
+            this.ensureBlankLine();
+            this.emitBlock(["static class Deserializer extends JsonDeserializer<", unionName, ">"], () => {
+                this.emitLine("@Override");
+                this.emitBlock(
+                    [
+                        "public ",
+                        unionName,
+                        " deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException"
+                    ],
+                    () => {
+                        this.emitLine(unionName, " value = new ", unionName, "();");
+                        this.emitLine("switch (jsonParser.getCurrentToken()) {");
+                        if (maybeNull !== null) emitNullDeserializer();
+                        emitDeserializer(["VALUE_NUMBER_INT"], "integer");
+                        emitDoubleSerializer();
+                        emitDeserializer(["VALUE_TRUE", "VALUE_FALSE"], "bool");
+                        emitDeserializer(["VALUE_STRING"], "string");
+                        emitDeserializer(["START_ARRAY"], "array");
+                        emitDeserializer(["START_OBJECT"], "class");
+                        emitDeserializer(["VALUE_STRING"], "enum");
+                        emitDeserializer(["START_OBJECT"], "map");
+                        this.emitLine('default: throw new IOException("Cannot deserialize ', unionName, '");');
+                        this.emitLine("}");
+                        this.emitLine("return value;");
+                    }
+                );
+            });
+            this.ensureBlankLine();
+            this.emitBlock(["static class Serializer extends JsonSerializer<", unionName, ">"], () => {
+                this.emitLine("@Override");
+                this.emitBlock(
+                    [
+                        "public void serialize(",
+                        unionName,
+                        " obj, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException"
+                    ],
+                    () => {
+                        for (const t of nonNulls) {
+                            const { fieldName } = this.unionField(u, t, true);
+                            this.emitBlock(["if (obj.", fieldName, " != null)"], () => {
+                                this.emitLine("jsonGenerator.writeObject(obj.", fieldName, ");");
+                                this.emitLine("return;");
+                            });
+                        }
+                        if (maybeNull !== null) {
+                            this.emitLine("jsonGenerator.writeNull();");
+                        } else {
+                            this.emitLine('throw new IOException("', unionName, ' must not be null");');
+                        }
+                    }
+                );
+            });
+        });*/
+        this.finishFile();
+    }
+
+    protected emitEnumDefinition(e: EnumType, enumName: Name): void {
+        this.emitFileHeader(enumName, this.importsForType(e));
+        this.emitDescription(this.descriptionForType(e));
+        const caseNames: Sourcelike[] = [];
+        this.forEachEnumCase(e, "none", name => {
+            if (caseNames.length > 0) caseNames.push(", ");
+            caseNames.push(name);
+        });
+        caseNames.push(";");
+        /*this.emitBlock(["public enum ", enumName], () => {
+            this.emitLine(caseNames);
+            this.ensureBlankLine();
+            this.emitLine("@JsonValue");
+            this.emitBlock("public String toValue()", () => {
+                this.emitLine("switch (this) {");
+                this.forEachEnumCase(e, "none", (name, jsonName) => {
+                    this.emitLine("case ", name, ': return "', stringEscape(jsonName), '";');
+                });
+                this.emitLine("}");
+                this.emitLine("return null;");
+            });
+            this.ensureBlankLine();
+            this.emitLine("@JsonCreator");
+            this.emitBlock(["public static ", enumName, " forValue(String value) throws IOException"], () => {
+                this.forEachEnumCase(e, "none", (name, jsonName) => {
+                    this.emitLine('if (value.equals("', stringEscape(jsonName), '")) return ', name, ";");
+                });
+                this.emitLine('throw new IOException("Cannot deserialize ', enumName, '");');
+            });
+        });*/
+        this.finishFile();
+    }
+
+    protected emitSourceStructure(givenOutputFilename: string) {
+        super.emitSourceStructure(givenOutputFilename);
+
+        this.forEachNamedType(
+            "leading-and-interposing",
+            (c: ClassType, n: Name) => this.emitClassDefinition(c, n),
+            (e, n) => this.emitEnumDefinition(e, n),
+            (u, n) => this.emitUnionDefinition(u, n)
+        );
     }
 }

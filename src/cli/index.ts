@@ -152,6 +152,7 @@ async function samplesFromDirectory(dataDir: string): Promise<TypeSource[]> {
                 sourcesInDir.push(source);
             }
         }
+        console.log(sourcesInDir);
 
         return sourcesInDir;
     }
@@ -581,7 +582,13 @@ function parseOptions(definitions: OptionDefinition[], argv: string[], partial: 
 
     const options: { rendererOptions: RendererOptions; [key: string]: any } = { rendererOptions: {} };
     for (const o of definitions) {
-        if (!hasOwnProperty(opts, o.name)) continue;
+        if (
+            !hasOwnProperty(
+                opts,
+                o.name
+            )
+        )
+            continue;
         const v = opts[o.name];
         if (o.renderer !== undefined) options.rendererOptions[o.name] = v;
         else {
@@ -937,6 +944,7 @@ export async function main(args: string[] | Partial<CLIOptions>) {
 
     const quicktypeOptions = await makeQuicktypeOptions(cliOptions);
     if (quicktypeOptions === undefined) return;
+    console.log(require("util").inspect(quicktypeOptions, false, null));
 
     telemetry.event("default", "quicktype", cliOptions.lang);
     const resultsByFilename = await telemetry.timeAsync("run", async () => await quicktypeMultiFile(quicktypeOptions));
