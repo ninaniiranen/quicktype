@@ -73,7 +73,13 @@ export const transformedStringTypeKinds = new Set(
 ) as ReadonlySet<TransformedStringTypeKind>;
 
 export function isPrimitiveStringTypeKind(kind: string): kind is PrimitiveStringTypeKind {
-    return kind === "string" || hasOwnProperty(transformedStringTypeTargetTypeKinds, kind);
+    return (
+        kind === "string" ||
+        hasOwnProperty(
+            transformedStringTypeTargetTypeKinds,
+            kind
+        )
+    );
 }
 
 export function targetTypeKindForTransformedStringTypeKind(
