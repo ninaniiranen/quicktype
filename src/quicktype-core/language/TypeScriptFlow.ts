@@ -381,19 +381,16 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     }
 
     protected importsForType(t: Type): ReadonlySet<Type> {
-        console.log("imports:");
         if (t instanceof ObjectType) {
-            // console.log(require("util").inspect(t));
             const referredTypes = new Set<Type>();
-            t.getProperties().forEach((property, name) => {
+            t.getProperties().forEach((property, _name) => {
                 let type = property.type;
                 if (type instanceof ArrayType) {
                     type = type.items;
                 } else if (type instanceof MapType) {
                     type = type.values;
                 }
-                // console.log(require("util").inspect(type));
-                property.graph.topLevels.forEach((topType, topName) => {
+                property.graph.topLevels.forEach((topType, _topName) => {
                     if (topType.structurallyCompatible(type)) {
                         referredTypes.add(type);
                     }
@@ -436,48 +433,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
             const source = [n, p.isOptional ? "?" : "", ": "];
             this.emitDescription(this.descriptionForType(t));
             this.emitLine(...source, this.sourceFor(t).source, ";");
-            /*if (t instanceof ArrayType) {
-                this.emitLine(...source, this.sourceFor(t).source, ";");
-            } else if (t instanceof EnumType) {
-                this.emitLine(...source, modifySource(pascalCase, t.getCombinedName()), ";");
-                /*this.emitLine("export type ", t.getCombinedName(), " =");
-                const lines: string[][] = [];
-                this.forEachEnumCase(t, "none", (_, jsonName) => {
-                    const maybeOr = lines.length === 0 ? "  " : "| ";
-                    lines.push([maybeOr, '"', utf16StringEscape(jsonName), '"']);
-                });
-                defined(lines[lines.length - 1]).push(";");
-                this.indent(() => {
-                    for (const line of lines) {
-                        this.emitLine(line);
-                    }
-                });
-            }*/
         });
-
-        /*
-        type.getSortedProperties().forEach((prop, propName) => {
-            if (prop.type instanceof ObjectType) {
-                this.forEachClassProperty(prop.type, "leading-and-interposing", (n, _jn, p) => {
-                    this.emitBlock(["    ", n, p.isOptional ? "?" : "", ":"], ";", () => {
-                        this.sourceFor(p.type);
-                    });
-                });
-            } else {
-                this.emitBlock(["    ", propName, prop.isOptional ? "?" : "", ":"], ";", () => {
-                    this.sourceFor(prop.type);
-                });
-            }
-            if (prop.type instanceof ClassType) {
-            this.emitPropertyTable(prop.type, (propName: Name, _jsonName: string, p: ClassProperty) => {
-                const t = p.type;
-                return [
-                    [modifySource(quotePropertyName, propName), p.isOptional ? "?" : "", ": "],
-                    [this.sourceFor(t).source, ";"]
-                ];
-            });
-        }
-        });*/
     }
 
     forEachObjectProperty(
@@ -487,7 +443,6 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     ): void {
         const properties = type.getProperties();
         this.forEachWithBlankLines(properties, blackLineConfig, (property, name, pos) => {
-            // const name = this.makeNameForNamedType(property.type);
             f(property, name, pos);
         });
     }
@@ -504,7 +459,6 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                 return;
             }
             const t = p.type;
-            // const source = [n, p.isOptional ? "?" : "", ": "];
             if (t instanceof ObjectType) {
                 this.emitDescription(this.descriptionForType(t));
                 this.emitBlock(["export type ", modifySource(pascalCase, t.getCombinedName()), " = "], ";", () => {
@@ -513,7 +467,6 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                 this.ensureBlankLine();
             } else if (t instanceof EnumType) {
                 this.emitDescription(this.descriptionForType(t));
-                // this.emitLine(...source, modifySource(pascalCase, t.getCombinedName()), ";");
                 this.emitLine("export type ", modifySource(pascalCase, t.getCombinedName()), " =");
                 const lines: string[][] = [];
                 this.forEachEnumCase(t, "none", (_, jsonName) => {
