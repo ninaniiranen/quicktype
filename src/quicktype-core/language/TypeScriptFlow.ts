@@ -395,7 +395,6 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                 // console.log(require("util").inspect(type));
                 property.graph.topLevels.forEach((topType, topName) => {
                     if (topType.structurallyCompatible(type)) {
-                        console.log(`added ${topName} for prop ${name}`);
                         referredTypes.add(type);
                     }
                 });
@@ -411,7 +410,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                 "import { ",
                 modifySource(pascalCase, type.getCombinedName()),
                 " } from './",
-                type.getCombinedName(),
+                modifySource(camelCase, type.getCombinedName()),
                 "';"
             );
         }
