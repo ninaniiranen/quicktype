@@ -462,7 +462,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
             if (t instanceof ObjectType) {
                 this.emitDescription(this.descriptionForType(t));
                 this.emitBlock(["export type ", modifySource(pascalCase, t.getCombinedName()), " = "], ";", () => {
-                    this.emitProperties(type);
+                    this.emitProperties(t);
                 });
                 this.ensureBlankLine();
             } else if (t instanceof EnumType) {
