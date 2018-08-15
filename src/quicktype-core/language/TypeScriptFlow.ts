@@ -404,7 +404,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     emitImports(imports: ReadonlySet<Type>): void {
         for (const type of imports) {
             this.emitLine(
-                "import { ",
+                "import type { ",
                 modifySource(pascalCase, type.getCombinedName()),
                 " } from './",
                 modifySource(camelCase, type.getCombinedName()),
