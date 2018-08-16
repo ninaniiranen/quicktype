@@ -500,28 +500,33 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     }
 
     emitModel(type: ObjectType): void {
-        this.emitBlock(["export const Model: ", modifySource(pascalCase, type.getCombinedName()), " = "], ";", () => {
-            this.forEachObjectProperty(type, "none", (p, n, _pos) => {
-                if (p.isOptional) {
-                    this.emitLine(n, ": undefined,");
-                } else {
-                    matchType(
-                        p.type,
-                        _anyType => panic("No default for type"),
-                        _nullType => this.emitLine(n, ": null,"),
-                        _boolType => this.emitLine(n, ": false,"),
-                        _integerType => this.emitLine(n, ": 0,"),
-                        _doubleType => this.emitLine(n, ": 0.0,"),
-                        _stringType => this.emitLine(n, ": '',"),
-                        _arrayType => this.emitLine(n, ": [],"),
-                        _classType => panic("No default for type"),
-                        _mapType => this.emitLine(n, ": {},"),
-                        _enumType => panic("No default for type"),
-                        _unionType => panic("No default for type")
-                    );
-                }
-            });
-        });
+        this.emitLine("// eslint-disable-next-line import/prefer-default-export");
+        this.emitBlock(
+            ["export const DefaultModel: ", modifySource(pascalCase, type.getCombinedName()), " = "],
+            ";",
+            () => {
+                this.forEachObjectProperty(type, "none", (p, n, _pos) => {
+                    if (p.isOptional) {
+                        this.emitLine(n, ": undefined,");
+                    } else {
+                        matchType(
+                            p.type,
+                            _anyType => panic("No default for type"),
+                            _nullType => this.emitLine(n, ": null,"),
+                            _boolType => this.emitLine(n, ": false,"),
+                            _integerType => this.emitLine(n, ": 0,"),
+                            _doubleType => this.emitLine(n, ": 0.0,"),
+                            _stringType => this.emitLine(n, ": '',"),
+                            _arrayType => this.emitLine(n, ": [],"),
+                            _classType => panic("No default for type"),
+                            _mapType => this.emitLine(n, ": {},"),
+                            _enumType => panic("No default for type"),
+                            _unionType => panic("No default for type")
+                        );
+                    }
+                });
+            }
+        );
     }
 
     emitTopLevel(type: Type, _name: Name, _position: ForEachPosition): void {
