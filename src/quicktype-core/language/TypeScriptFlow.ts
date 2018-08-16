@@ -281,10 +281,25 @@ export class TypeScriptRenderer extends TypeScriptFlowBaseRenderer {
 }
 
 export const flowOptions = Object.assign({}, tsFlowOptions, {
-    multiFileOutput: new BooleanOption("multi-file-output", "Output each type to it's own file", false)
+    multiFileOutput: new BooleanOption("multi-file-output", "Output each type to it's own file", false),
+    generateModel: new BooleanOption(
+        "generate-model",
+        "Generate and export model objects that contain all un-required properties",
+        false
+    )
 });
 
 export class FlowTargetLanguage extends TypeScriptFlowBaseTargetLanguage {
+    protected getOptions(): Option<any>[] {
+        return [
+            flowOptions.justTypes,
+            flowOptions.nicePropertyNames,
+            flowOptions.declareUnions,
+            flowOptions.runtimeTypecheck,
+            flowOptions.multiFileOutput,
+            flowOptions.generateModel
+        ];
+    }
     constructor() {
         super("Flow", ["flow"], "js");
     }
@@ -484,6 +499,31 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
         });
     }
 
+    emitModel(type: ObjectType): void {
+        this.emitBlock(["export const Model: ", modifySource(pascalCase, type.getCombinedName()), " = "], ";", () => {
+            this.forEachObjectProperty(type, "none", (p, n, _pos) => {
+                if (p.isOptional) {
+                    this.emitLine(n, ": undefined,");
+                } else {
+                    matchType(
+                        p.type,
+                        _anyType => panic("No default for type"),
+                        _nullType => this.emitLine(n, ": null,"),
+                        _boolType => this.emitLine(n, ": false,"),
+                        _integerType => this.emitLine(n, ": 0,"),
+                        _doubleType => this.emitLine(n, ": 0.0,"),
+                        _stringType => this.emitLine(n, ": '',"),
+                        _arrayType => this.emitLine(n, ": [],"),
+                        _classType => panic("No default for type"),
+                        _mapType => this.emitLine(n, ": {},"),
+                        _enumType => panic("No default for type"),
+                        _unionType => panic("No default for type")
+                    );
+                }
+            });
+        });
+    }
+
     emitTopLevel(type: Type, _name: Name, _position: ForEachPosition): void {
         if (type instanceof ObjectType) {
             this.emitFileHeader(modifySource(camelCase, type.getCombinedName()), this.importsForType(type));
@@ -493,6 +533,10 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
             });
             this.ensureBlankLine();
             this.emitSubObjects(type);
+            if (this._flowOptions.generateModel) {
+                this.emitModel(type);
+            }
+            this.ensureBlankLine();
             this.finishFile();
         } else {
             console.warn(`skipping top level ${type.getCombinedName}`);
