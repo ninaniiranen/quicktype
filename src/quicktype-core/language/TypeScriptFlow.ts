@@ -463,23 +463,31 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     }
 
     emitSubObjects(type: ObjectType): void {
+        const emittedTypes: Type[] = new Array();
         this.forEachObjectProperty(type, "none", (p, _n, _pos) => {
+            let t = p.type;
+            if (t instanceof ArrayType) {
+                t = t.items;
+            }
             let isTopLevel = false;
             p.graph.topLevels.forEach((topType, _topName) => {
-                if (topType.structurallyCompatible(p.type)) {
+                if (topType.structurallyCompatible(t)) {
                     isTopLevel = true;
                 }
             });
             if (isTopLevel) {
                 return;
             }
-            const t = p.type;
+            if (emittedTypes.find(e => e.structurallyCompatible(t) && e.getCombinedName() === t.getCombinedName())) {
+                return;
+            }
             if (t instanceof ObjectType) {
                 this.emitDescription(this.descriptionForType(t));
                 this.emitBlock(["export type ", modifySource(pascalCase, t.getCombinedName()), " = "], ";", () => {
-                    this.emitProperties(t);
+                    this.emitProperties(t as ObjectType);
                 });
                 this.ensureBlankLine();
+                emittedTypes.push(t);
             } else if (t instanceof EnumType) {
                 this.emitDescription(this.descriptionForType(t));
                 this.emitLine("export type ", modifySource(pascalCase, t.getCombinedName()), " =");
@@ -495,6 +503,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                     }
                 });
                 this.ensureBlankLine();
+                emittedTypes.push(t);
             }
         });
     }
@@ -540,6 +549,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
             this.emitSubObjects(type);
             if (this._flowOptions.generateModel) {
                 this.emitModel(type);
+                // TODO emit sub objects
             }
             this.ensureBlankLine();
             this.finishFile();
