@@ -446,7 +446,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
         this.forEachObjectProperty(type, "none", (p, n, _pos) => {
             const t = p.type;
             const source = [n, p.isOptional ? "?" : "", ": "];
-            this.emitDescription(this.descriptionForType(t));
+            this.emitDescription(this.descriptionForClassProperty(type, n));
             this.emitLine(...source, this.sourceFor(t).source, ";");
         });
     }
