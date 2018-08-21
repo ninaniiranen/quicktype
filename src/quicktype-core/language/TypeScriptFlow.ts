@@ -406,7 +406,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                     type = type.values;
                 }
                 property.graph.topLevels.forEach((topType, _topName) => {
-                    if (topType.structurallyCompatible(type)) {
+                    if (t.typeRef !== topType.typeRef && topType.structurallyCompatible(type)) {
                         referredTypes.add(type);
                     }
                 });
