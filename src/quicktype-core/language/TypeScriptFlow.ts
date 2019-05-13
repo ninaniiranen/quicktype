@@ -407,7 +407,7 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
                 }
                 property.graph.topLevels.forEach((topType, _topName) => {
                     if (t.typeRef !== topType.typeRef && topType.structurallyCompatible(type)) {
-                        referredTypes.add(type);
+                        referredTypes.add(topType);
                     }
                 });
             });
@@ -445,9 +445,15 @@ export class FlowRenderer extends TypeScriptFlowBaseRenderer {
     emitProperties(type: ObjectType): void {
         this.forEachObjectProperty(type, "none", (p, n, _pos) => {
             const t = p.type;
+            let tt = undefined;
+            p.graph.topLevels.forEach((topType, _key) => {
+                if (topType.structurallyCompatible(t)) {
+                    tt = topType;
+                }
+            });
             const source = [n, p.isOptional ? "?" : "", ": "];
             this.emitDescription(this.descriptionForClassProperty(type, n));
-            this.emitLine(...source, this.sourceFor(t).source, ";");
+            this.emitLine(...source, this.sourceFor(tt || t).source, ";");
         });
     }
 
